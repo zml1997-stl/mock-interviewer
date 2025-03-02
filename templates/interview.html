@@ -1,0 +1,483 @@
+<!-- templates/interview.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Mock Interview - {{ job_title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 2rem;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .interview-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .card {
+            border-radius: 1rem;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            margin-bottom: 2rem;
+        }
+        .card-header {
+            background-color: #4a6baf;
+            color: white;
+            border-radius: 1rem 1rem 0 0 !important;
+            padding: 1.5rem;
+        }
+        .question-card {
+            min-height: 200px;
+        }
+        .speech-controls {
+            text-align: center;
+            margin-top: 2rem;
+        }
+        .record-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            font-size: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+        }
+        .recording-indicator {
+            color: #dc3545;
+            font-weight: bold;
+            animation: blink 1s infinite;
+            display: none;
+        }
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .timer {
+            font-size: 1.5rem;
+            margin-top: 1rem;
+        }
+        .text-answer-container {
+            display: none;
+            margin-top: 1rem;
+        }
+        .progress-container {
+            margin-bottom: 2rem;
+        }
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container interview-container">
+        <div class="progress-container">
+            <div class="progress-label">
+                <span>Question <span id="currentQuestion">1</span> of <span id="totalQuestions">{{ questions|length }}</span></span>
+                <span id="interviewType">{{ job_title }} Interview</span>
+            </div>
+            <div class="progress" style="height: 10px;">
+                <div class="progress-bar" id="progressBar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+        </div>
+        
+        <div class="card question-card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Question</h5>
+            </div>
+            <div class="card-body p-4">
+                <p id="questionText" class="lead"></p>
+                <div class="text-center">
+                    <button id="replayBtn" class="btn btn-sm btn-outline-primary" style="display: none;">
+                        <i class="bi bi-volume-up"></i> Replay Question
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mb-3">
+            <div class="btn-group" role="group">
+                <button id="voiceBtn" class="btn btn-primary active">Voice Answer</button>
+                <button id="textBtn" class="btn btn-outline-primary">Text Answer</button>
+            </div>
+        </div>
+        
+        <div id="voiceAnswerContainer" class="speech-controls">
+            <button id="recordBtn" class="btn btn-outline-danger record-btn">
+                <i class="bi bi-mic"></i>
+            </button>
+            <div id="recordingIndicator" class="recording-indicator mt-2">
+                <i class="bi bi-record-circle"></i> Recording...
+            </div>
+            <div id="timer" class="timer">00:00</div>
+            <p class="text-muted mt-2">Click to start/stop recording your answer</p>
+        </div>
+        
+        <div id="textAnswerContainer" class="text-answer-container">
+            <div class="form-group">
+                <label for="textAnswer">Your Answer:</label>
+                <textarea id="textAnswer" class="form-control" rows="6"></textarea>
+            </div>
+            <div class="d-grid gap-2 mt-3">
+                <button id="submitTextBtn" class="btn btn-primary">Submit Answer</button>
+            </div>
+        </div>
+        
+        <div class="d-grid gap-2 mt-4">
+            <button id="nextBtn" class="btn btn-success" disabled>Next Question</button>
+        </div>
+    </div>
+    
+    <!-- Completed Modal -->
+    <div class="modal fade" id="completedModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Interview Completed!</h5>
+                </div>
+                <div class="modal-body text-center">
+                    <div class="mb-4">
+                        <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+                    </div>
+                    <p>Great job! Your mock interview is now complete.</p>
+                    <p>Click the button below to generate and view your personalized feedback.</p>
+                    <div class="progress mb-3" id="feedbackProgress" style="display: none;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="generateFeedbackBtn" class="btn btn-primary">Generate Feedback</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variables
+        const interviewId = "{{ interview_id }}";
+        const questions = {{ questions|tojson }};
+        let currentQuestionIndex = 0;
+        let audioElement = null;
+        let recorder = null;
+        let audioChunks = [];
+        let recordingStartTime = 0;
+        let timerInterval = null;
+        let answerSubmitted = false;
+        
+        // DOM elements
+        const questionText = document.getElementById('questionText');
+        const replayBtn = document.getElementById('replayBtn');
+        const recordBtn = document.getElementById('recordBtn');
+        const recordingIndicator = document.getElementById('recordingIndicator');
+        const timer = document.getElementById('timer');
+        const nextBtn = document.getElementById('nextBtn');
+        const voiceBtn = document.getElementById('voiceBtn');
+        const textBtn = document.getElementById('textBtn');
+        const voiceAnswerContainer = document.getElementById('voiceAnswerContainer');
+        const textAnswerContainer = document.getElementById('textAnswerContainer');
+        const textAnswer = document.getElementById('textAnswer');
+        const submitTextBtn = document.getElementById('submitTextBtn');
+        const currentQuestionSpan = document.getElementById('currentQuestion');
+        const progressBar = document.getElementById('progressBar');
+        const completedModal = new bootstrap.Modal(document.getElementById('completedModal'));
+        const generateFeedbackBtn = document.getElementById('generateFeedbackBtn');
+        const feedbackProgress = document.getElementById('feedbackProgress');
+        
+        // Initialize the interview
+        document.addEventListener('DOMContentLoaded', () => {
+            loadQuestion(currentQuestionIndex);
+            
+            // Set up event listeners
+            replayBtn.addEventListener('click', playQuestionAudio);
+            recordBtn.addEventListener('click', toggleRecording);
+            nextBtn.addEventListener('click', goToNextQuestion);
+            voiceBtn.addEventListener('click', switchToVoiceAnswer);
+            textBtn.addEventListener('click', switchToTextAnswer);
+            submitTextBtn.addEventListener('click', submitTextAnswer);
+            generateFeedbackBtn.addEventListener('click', generateFeedback);
+        });
+        
+        // Functions
+        async function loadQuestion(index) {
+            try {
+                currentQuestionSpan.textContent = index + 1;
+                const progress = ((index) / questions.length) * 100;
+                progressBar.style.width = `${progress}%`;
+                progressBar.setAttribute('aria-valuenow', progress);
+                
+                const response = await fetch('/ask_question', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        interview_id: interviewId,
+                        question_index: index
+                    }),
+                });
+                
+                const data = await response.json();
+                
+                if (data.completed) {
+                    completedModal.show();
+                    return;
+                }
+                
+                questionText.textContent = data.question;
+                
+                // Create audio element
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement
+                  audioElement.pause();
+                    audioElement.remove();
+                }
+                
+                audioElement = new Audio(data.audio_url);
+                audioElement.addEventListener('canplaythrough', () => {
+                    audioElement.play();
+                    replayBtn.style.display = 'inline-block';
+                });
+                
+                // Reset state for new question
+                resetRecording();
+                answerSubmitted = false;
+                nextBtn.disabled = true;
+                textAnswer.value = '';
+                
+            } catch (error) {
+                console.error('Error loading question:', error);
+                alert('Failed to load question. Please try refreshing the page.');
+            }
+        }
+        
+        function playQuestionAudio() {
+            if (audioElement) {
+                audioElement.currentTime = 0;
+                audioElement.play();
+            }
+        }
+        
+        function toggleRecording() {
+            if (recorder && recorder.state === 'recording') {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        }
+        
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                recorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                recorder.addEventListener('dataavailable', event => {
+                    audioChunks.push(event.data);
+                });
+                
+                recorder.addEventListener('stop', processRecording);
+                
+                recorder.start();
+                recordingStartTime = Date.now();
+                startTimer();
+                
+                recordBtn.classList.remove('btn-outline-danger');
+                recordBtn.classList.add('btn-danger');
+                recordBtn.innerHTML = '<i class="bi bi-stop-fill"></i>';
+                recordingIndicator.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                alert('Unable to access microphone. Please ensure you have granted permission.');
+            }
+        }
+        
+        function stopRecording() {
+            if (recorder) {
+                recorder.stop();
+                clearInterval(timerInterval);
+                
+                recordBtn.classList.remove('btn-danger');
+                recordBtn.classList.add('btn-outline-danger');
+                recordBtn.innerHTML = '<i class="bi bi-mic"></i>';
+                recordingIndicator.style.display = 'none';
+            }
+        }
+        
+        function processRecording() {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            submitAudioAnswer(audioBlob);
+        }
+        
+        function startTimer() {
+            timer.textContent = '00:00';
+            clearInterval(timerInterval);
+            
+            timerInterval = setInterval(() => {
+                const elapsedTime = Date.now() - recordingStartTime;
+                const seconds = Math.floor((elapsedTime / 1000) % 60).toString().padStart(2, '0');
+                const minutes = Math.floor((elapsedTime / 1000 / 60) % 60).toString().padStart(2, '0');
+                timer.textContent = `${minutes}:${seconds}`;
+                
+                // Auto-stop after 3 minutes
+                if (elapsedTime > 180000) {
+                    stopRecording();
+                }
+            }, 1000);
+        }
+        
+        function resetRecording() {
+            if (recorder && recorder.state === 'recording') {
+                stopRecording();
+            }
+            
+            clearInterval(timerInterval);
+            timer.textContent = '00:00';
+            recordBtn.classList.remove('btn-danger');
+            recordBtn.classList.add('btn-outline-danger');
+            recordBtn.innerHTML = '<i class="bi bi-mic"></i>';
+            recordingIndicator.style.display = 'none';
+        }
+        
+        async function submitAudioAnswer(audioBlob) {
+            try {
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.wav');
+                formData.append('interview_id', interviewId);
+                formData.append('question_index', currentQuestionIndex);
+                
+                const response = await fetch('/submit_answer', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    answerSubmitted = true;
+                    nextBtn.disabled = false;
+                } else {
+                    alert('Failed to submit answer: ' + (data.error || 'Unknown error'));
+                }
+                
+            } catch (error) {
+                console.error('Error submitting answer:', error);
+                alert('Failed to submit answer. Please try again.');
+            }
+        }
+        
+        function submitTextAnswer() {
+            const answer = textAnswer.value.trim();
+            if (!answer) {
+                alert('Please enter your answer before submitting.');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('text_answer', answer);
+            formData.append('interview_id', interviewId);
+            formData.append('question_index', currentQuestionIndex);
+            
+            fetch('/submit_answer', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    answerSubmitted = true;
+                    nextBtn.disabled = false;
+                } else {
+                    alert('Failed to submit answer: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error submitting text answer:', error);
+                alert('Failed to submit answer. Please try again.');
+            });
+        }
+        
+        function goToNextQuestion() {
+            if (!answerSubmitted) {
+                if (!confirm('You haven\'t submitted an answer. Are you sure you want to skip this question?')) {
+                    return;
+                }
+            }
+            
+            currentQuestionIndex++;
+            loadQuestion(currentQuestionIndex);
+        }
+        
+        function switchToVoiceAnswer() {
+            voiceBtn.classList.add('active');
+            voiceBtn.classList.remove('btn-outline-primary');
+            voiceBtn.classList.add('btn-primary');
+            
+            textBtn.classList.remove('active');
+            textBtn.classList.add('btn-outline-primary');
+            textBtn.classList.remove('btn-primary');
+            
+            voiceAnswerContainer.style.display = 'block';
+            textAnswerContainer.style.display = 'none';
+        }
+        
+        function switchToTextAnswer() {
+            textBtn.classList.add('active');
+            textBtn.classList.remove('btn-outline-primary');
+            textBtn.classList.add('btn-primary');
+            
+            voiceBtn.classList.remove('active');
+            voiceBtn.classList.add('btn-outline-primary');
+            voiceBtn.classList.remove('btn-primary');
+            
+            textAnswerContainer.style.display = 'block';
+            voiceAnswerContainer.style.display = 'none';
+        }
+        
+        async function generateFeedback() {
+            generateFeedbackBtn.disabled = true;
+            feedbackProgress.style.display = 'block';
+            
+            try {
+                const response = await fetch('/generate_feedback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        interview_id: interviewId
+                    }),
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error generating feedback: ' + data.error);
+                    generateFeedbackBtn.disabled = false;
+                    feedbackProgress.style.display = 'none';
+                    return;
+                }
+                
+                // Redirect to feedback page
+                window.location.href = '/feedback/' + interviewId;
+                
+            } catch (error) {
+                console.error('Error generating feedback:', error);
+                alert('Failed to generate feedback. Please try again.');
+                generateFeedbackBtn.disabled = false;
+                feedbackProgress.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
