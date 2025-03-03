@@ -21,6 +21,13 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['INTERVIEW_DATA'], exist_ok=True)
 os.makedirs('static/audio', exist_ok=True)
 
+# Ensure directories exist before first request
+@app.before_first_request
+def create_upload_directories():
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    os.makedirs(app.config['INTERVIEW_DATA'], exist_ok=True)
+    os.makedirs('static/audio', exist_ok=True)
+
 # Configure Gemini API
 def configure_genai(api_key):
     genai.configure(api_key=api_key)
