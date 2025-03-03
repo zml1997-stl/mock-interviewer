@@ -17,9 +17,13 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['INTERVIEW_DATA'] = 'interview_data'
 
 # Create required directories if they don't exist
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['INTERVIEW_DATA'], exist_ok=True)
-os.makedirs('static/audio', exist_ok=True)
+def ensure_directories():
+    with app.app_context():
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+        os.makedirs(app.config['INTERVIEW_DATA'], exist_ok=True)
+        os.makedirs('static/audio', exist_ok=True)
+
+ensure_directories()
 
 # Ensure directories exist before first request
 @app.before_first_request
@@ -33,8 +37,14 @@ def configure_genai(api_key):
     genai.configure(api_key=api_key)
 
 # Initialize with environment variable if available
-if os.environ.get('GEMINI_API_KEY'):
-    configure_genai(os.environ.get('GEMINI_API_KEY'))
+try:
+    if api_key := os.environ.get('GEMINI_API_KEY'):
+        configure_genai(api_key)
+    else:
+        print("Warning: GEMINI_API_KEY not set in environment")
+except Exception as e:
+    print(f"Critical Gemini initialization error: {str(e)}")
+    raise  # Force crash during startup if config fails
 
 # Text extraction functions
 def extract_text_from_pdf(pdf_path):
