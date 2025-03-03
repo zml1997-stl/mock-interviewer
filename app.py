@@ -230,48 +230,42 @@ def submit_answer():
     question_index = int(request.form.get('question_index', 0))
     
     try:
-        # Process the audio answer
-        if 'audio' in request.files:
-            audio_file = request.files['audio']
-            if audio_file.filename != '':
-                # Save the audio file temporarily
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp:
-                    audio_file.save(temp.name)
-                    temp_filename = temp.name
-                
-                # Convert speech to text
-                recognizer = sr.Recognizer()
-                with sr.AudioFile(temp_filename) as source:
-                    audio_data = recognizer.record(source)
-                    try:
-                        answer_text = recognizer.recognize_google(audio_data)
-                    except Exception as e:
-                        print(f"Speech recognition error: {e}")
-                        answer_text = "[Unable to transcribe audio]"
-                
-                # Clean up temp file
-                os.unlink(temp_filename)
-        else:
-            # If no audio was provided, use text input
-            answer_text = request.form.get('text_answer', '')
-        
-        # Update interview data
-        with open(os.path.join(app.config['INTERVIEW_DATA'], f'{interview_id}.json'), 'r') as f:
-            interview_data = json.load(f)
-        
-        # Save the response
-        interview_data['responses'].append({
-            'question_index': question_index,
-            'question': interview_data['questions'][question_index],
-            'answer': answer_text
-        })
-        
-        with open(os.path.join(app.config['INTERVIEW_DATA'], f'{interview_id}.json'), 'w') as f:
-            json.dump(interview_data, f)
-        
+        if 'audio' not in request.files:
+            return jsonify({'error': 'No audio file provided'}), 400
+
+        audio_file = request.files['audio']
+        if audio_file.filename == '':
+            return jsonify({'error': 'Empty audio file'}), 400
+
+        # Create temporary files with proper extensions
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.webm') as temp_input:
+            audio_file.save(temp_input.name)
+            input_path = temp_input.name
+
+        # Convert to WAV format using pydub
+        output_path = f"{input_path}.wav"
+        audio = AudioSegment.from_file(input_path)
+        audio = audio.set_frame_rate(16000).set_channels(1)
+        audio.export(output_path, format="wav", codec="pcm_s16le")
+
+        # Process converted audio
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(output_path) as source:
+            audio_data = recognizer.record(source)
+            answer_text = recognizer.recognize_google(audio_data)
+
+        # Clean up files
+        os.unlink(input_path)
+        os.unlink(output_path)
+
+        # Rest of your existing code...
         return jsonify({'success': True, 'next_question_index': question_index + 1})
+    
+    except sr.UnknownValueError:
+        return jsonify({'error': 'Could not understand audio'}), 400
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Audio processing error: {str(e)}")
+        return jsonify({'error': f'Audio processing failed: {str(e)}'}), 500
 
 @app.route('/generate_feedback', methods=['POST'])
 def generate_feedback():
