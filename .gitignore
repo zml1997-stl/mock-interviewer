@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+uploads/
+interview_data/
+static/audio/
+.env
