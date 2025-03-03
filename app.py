@@ -26,8 +26,9 @@ def ensure_directories():
 ensure_directories()
 
 # Ensure directories exist before first request
-@app.before_first_request
-def create_upload_directories():
+# Right after app configuration, before routes
+# Create directories immediately at startup
+with app.app_context():
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['INTERVIEW_DATA'], exist_ok=True)
     os.makedirs('static/audio', exist_ok=True)
