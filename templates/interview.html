@@ -364,10 +364,13 @@
                 const data = await response.json();
                 
                 if (data.success) {
+                    console.log('Answer submitted successfully'); // Debugging
                     answerSubmitted = true;
-                    nextBtn.disabled = false; // Enable the "Next Question" button
-                    nextBtn.classList.remove('disabled'); // Remove the disabled styling
+                    nextBtn.disabled = false; // Enable the button
+                    nextBtn.classList.remove('disabled'); // Remove disabled styling
+                    console.log('Next button enabled:', nextBtn.disabled); // Debugging
                 } else {
+                    console.error('Submission failed:', data.error); // Debugging
                     alert('Failed to submit answer: ' + (data.error || 'Unknown error'));
                 }
                 
