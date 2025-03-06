@@ -313,12 +313,50 @@
         }
         
         function processRecording() {
-            let mimeType = 'audio/webm'; // Default for Chrome
-            if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) {
-                mimeType = 'audio/ogg'; // Safari might use Ogg
+            // Determine supported MIME type
+            let mimeType = 'audio/webm';
+            if (!MediaRecorder.isTypeSupported('audio/webm')) {
+                if (MediaRecorder.isTypeSupported('audio/ogg')) {
+                    mimeType = 'audio/ogg';
+                } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                    mimeType = 'audio/mp4'; // For Safari, might use AAC in MP4 container
+                } else {
+                    alert('No supported audio format found for recording.');
+                    return;
+                }
             }
+            console.log('Recording MIME type:', mimeType); // Debug log
             const audioBlob = new Blob(audioChunks, { type: mimeType });
-            submitAudioAnswer(audioBlob);
+            console.log('Blob size:', audioBlob.size); // Debug log to check if empty
+            submitAudioAnswer(audioBlob, mimeType);
+        }
+        
+        async function submitAudioAnswer(audioBlob, mimeType) {
+            try {
+                const extension = mimeType.split('/')[1]; // e.g., 'webm', 'ogg', 'mp4'
+                const formData = new FormData();
+                formData.append('audio', audioBlob, `recording.${extension}`);
+                formData.append('interview_id', interviewId);
+                formData.append('question_index', currentQuestionIndex);
+                
+                const response = await fetch('/submit_answer', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    answerSubmitted = true;
+                    nextBtn.disabled = false;
+                } else {
+                    alert('Failed to submit answer: ' + (data.error || 'Unknown error'));
+                }
+                
+            } catch (error) {
+                console.error('Error submitting answer:', error);
+                alert('Failed to submit answer. Please try again.');
+            }
         }
         
         function startTimer() {
@@ -349,33 +387,6 @@
             recordBtn.classList.add('btn-outline-danger');
             recordBtn.innerHTML = '<i class="bi bi-mic"></i>';
             recordingIndicator.style.display = 'none';
-        }
-        
-        async function submitAudioAnswer(audioBlob) {
-            try {
-                const formData = new FormData();
-                formData.append('audio', audioBlob, 'recording.webm');
-                formData.append('interview_id', interviewId);
-                formData.append('question_index', currentQuestionIndex);
-                
-                const response = await fetch('/submit_answer', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    answerSubmitted = true;
-                    nextBtn.disabled = false;
-                } else {
-                    alert('Failed to submit answer: ' + (data.error || 'Unknown error'));
-                }
-                
-            } catch (error) {
-                console.error('Error submitting answer:', error);
-                alert('Failed to submit answer. Please try again.');
-            }
         }
         
         function submitTextAnswer() {
