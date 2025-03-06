@@ -75,6 +75,29 @@
             justify-content: space-between;
             margin-bottom: 0.5rem;
         }
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .loading-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
     </style>
 </head>
 <body>
@@ -136,6 +159,16 @@
         </div>
     </div>
     
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Analyzing your answer and preparing next question...</p>
+        </div>
+    </div>
+    
     <!-- Completed Modal -->
     <div class="modal fade" id="completedModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
         <div class="modal-dialog modal-dialog-centered">
@@ -191,6 +224,7 @@
         const completedModal = new bootstrap.Modal(document.getElementById('completedModal'));
         const generateFeedbackBtn = document.getElementById('generateFeedbackBtn');
         const feedbackProgress = document.getElementById('feedbackProgress');
+        const loadingOverlay = document.getElementById('loadingOverlay');
         
         // Initialize the interview
         document.addEventListener('DOMContentLoaded', () => {
@@ -319,21 +353,24 @@
                 if (MediaRecorder.isTypeSupported('audio/ogg')) {
                     mimeType = 'audio/ogg';
                 } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-                    mimeType = 'audio/mp4'; // For Safari, might use AAC in MP4 container
+                    mimeType = 'audio/mp4';
                 } else {
                     alert('No supported audio format found for recording.');
                     return;
                 }
             }
-            console.log('Recording MIME type:', mimeType); // Debug log
+            console.log('Recording MIME type:', mimeType);
             const audioBlob = new Blob(audioChunks, { type: mimeType });
-            console.log('Blob size:', audioBlob.size); // Debug log to check if empty
+            console.log('Blob size:', audioBlob.size);
             submitAudioAnswer(audioBlob, mimeType);
         }
         
         async function submitAudioAnswer(audioBlob, mimeType) {
             try {
-                const extension = mimeType.split('/')[1]; // e.g., 'webm', 'ogg', 'mp4'
+                // Show loading overlay
+                loadingOverlay.style.display = 'flex';
+                
+                const extension = mimeType.split('/')[1];
                 const formData = new FormData();
                 formData.append('audio', audioBlob, `recording.${extension}`);
                 formData.append('interview_id', interviewId);
@@ -346,6 +383,9 @@
                 
                 const data = await response.json();
                 
+                // Hide loading overlay
+                loadingOverlay.style.display = 'none';
+                
                 if (data.success) {
                     answerSubmitted = true;
                     nextBtn.disabled = false;
@@ -354,6 +394,8 @@
                 }
                 
             } catch (error) {
+                // Hide loading overlay on error
+                loadingOverlay.style.display = 'none';
                 console.error('Error submitting answer:', error);
                 alert('Failed to submit answer. Please try again.');
             }
