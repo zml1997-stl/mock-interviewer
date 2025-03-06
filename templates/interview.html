@@ -182,8 +182,11 @@
                     </div>
                     <p>Great job! Your mock interview is now complete.</p>
                     <p>Click the button below to generate and view your personalized feedback.</p>
-                    <div class="progress mb-3" id="feedbackProgress" style="display: none;">
-                        <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                    <div class="d-flex justify-content-center align-items-center" id="feedbackProgress">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="ms-3">Generating feedback...</p>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -501,7 +504,7 @@
         
         async function generateFeedback() {
             generateFeedbackBtn.disabled = true;
-            feedbackProgress.style.display = 'block';
+            feedbackProgress.style.display = 'flex'; // Show spinner and text
             
             try {
                 const response = await fetch('/generate_feedback', {
@@ -516,10 +519,11 @@
                 
                 const data = await response.json();
                 
+                feedbackProgress.style.display = 'none'; // Hide spinner and text on success
+                
                 if (data.error) {
                     alert('Error generating feedback: ' + data.error);
                     generateFeedbackBtn.disabled = false;
-                    feedbackProgress.style.display = 'none';
                     return;
                 }
                 
@@ -527,10 +531,10 @@
                 window.location.href = '/feedback/' + interviewId;
                 
             } catch (error) {
+                feedbackProgress.style.display = 'none'; // Hide spinner and text on error
                 console.error('Error generating feedback:', error);
                 alert('Failed to generate feedback. Please try again.');
                 generateFeedbackBtn.disabled = false;
-                feedbackProgress.style.display = 'none';
             }
         }
     </script>
