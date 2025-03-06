@@ -98,6 +98,20 @@
             width: 3rem;
             height: 3rem;
         }
+        .interview-tips {
+            width: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+            margin-bottom: 1rem;
+        }
+        .interview-tips span {
+            display: inline-block;
+            animation: scroll 20s linear infinite;
+        }
+        @keyframes scroll {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
     </style>
 </head>
 <body>
@@ -182,11 +196,16 @@
                     </div>
                     <p>Great job! Your mock interview is now complete.</p>
                     <p>Click the button below to generate and view your personalized feedback.</p>
-                    <div class="d-flex justify-content-center align-items-center" id="feedbackProgress">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
+                    <div id="feedbackProgress" style="display: none;">
+                        <div class="interview-tips">
+                            <span>Interview Tips: Maintain eye contact • Speak clearly and confidently • Prepare examples of your achievements • Research the company beforehand • Practice common questions</span>
                         </div>
-                        <p class="ms-3">Generating feedback...</p>
+                        <div class="d-flex justify-content-center align-items-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="ms-3">Generating feedback...</p>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -504,7 +523,7 @@
         
         async function generateFeedback() {
             generateFeedbackBtn.disabled = true;
-            feedbackProgress.style.display = 'flex'; // Show spinner and text
+            feedbackProgress.style.display = 'block'; // Show spinner and tips only when button is clicked
             
             try {
                 const response = await fetch('/generate_feedback', {
@@ -519,7 +538,7 @@
                 
                 const data = await response.json();
                 
-                feedbackProgress.style.display = 'none'; // Hide spinner and text on success
+                feedbackProgress.style.display = 'none'; // Hide spinner and tips on success
                 
                 if (data.error) {
                     alert('Error generating feedback: ' + data.error);
@@ -531,7 +550,7 @@
                 window.location.href = '/feedback/' + interviewId;
                 
             } catch (error) {
-                feedbackProgress.style.display = 'none'; // Hide spinner and text on error
+                feedbackProgress.style.display = 'none'; // Hide spinner and tips on error
                 console.error('Error generating feedback:', error);
                 alert('Failed to generate feedback. Please try again.');
                 generateFeedbackBtn.disabled = false;
