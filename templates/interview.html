@@ -349,10 +349,15 @@
             recordingIndicator.style.display = 'none';
         }
 
+        function processRecording() {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            submitAudioAnswer(audioBlob);
+        }
+        
         async function submitAudioAnswer(audioBlob) {
             try {
                 const formData = new FormData();
-                formData.append('audio', audioBlob, 'recording.wav');
+                formData.append('audio', audioBlob, 'recording.webm');
                 formData.append('interview_id', interviewId);
                 formData.append('question_index', currentQuestionIndex);
                 
@@ -364,22 +369,16 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    console.log('Answer submitted successfully'); // Debugging
                     answerSubmitted = true;
-                    nextBtn.disabled = false; // Enable the button
-                    nextBtn.classList.remove('disabled'); // Remove disabled styling
-                    console.log('Next button enabled:', nextBtn.disabled); // Debugging
+                    nextBtn.disabled = false;
                 } else {
-                    console.error('Submission failed:', data.error); // Debugging
                     alert('Failed to submit answer: ' + (data.error || 'Unknown error'));
                 }
-                
             } catch (error) {
                 console.error('Error submitting answer:', error);
                 alert('Failed to submit answer. Please try again.');
             }
-        }
-        
+        }        
         function submitTextAnswer() {
             const answer = textAnswer.value.trim();
             if (!answer) {
