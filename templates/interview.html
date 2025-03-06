@@ -479,5 +479,29 @@
             }
         }
     </script>
+    <!-- Add this script before the closing </body> tag -->
+<script src="https://cdn.jsdelivr.net/npm/wav-encoder@1.3.0/dist/wav-encoder.min.js"></script>
+<script>
+    async function convertWebmToWav(webmBlob) {
+        const audioContext = new AudioContext();
+        const arrayBuffer = await webmBlob.arrayBuffer();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+        const wavBuffer = await WavEncoder.encode({
+            sampleRate: audioBuffer.sampleRate,
+            channelData: [
+                audioBuffer.getChannelData(0) // Use the first channel (mono)
+            ]
+        });
+
+        return new Blob([wavBuffer], { type: 'audio/wav' });
+    }
+
+    async function processRecording() {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const wavBlob = await convertWebmToWav(audioBlob);
+        submitAudioAnswer(wavBlob);
+    }
+</script>
 </body>
 </html>
