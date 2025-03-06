@@ -130,6 +130,14 @@
             <div class="card-header">
                 <h5 class="card-title mb-0">Question</h5>
             </div>
+            <div class="card-body p-4">
+                <p id="questionText" class="lead"></p>
+                <div class="text-center">
+                    <button id="replayBtn" class="btn btn-sm btn-outline-primary" style="display: none;">
+                        <i class="bi bi-volume-up"></i> Replay Question
+                    </button>
+                </div>
+            </div>
         </div>
         
         <div class="text-center mb-3">
@@ -303,6 +311,13 @@
             } catch (error) {
                 console.error('Error loading question:', error);
                 alert('Failed to load question. Please try refreshing the page.');
+            }
+        }
+        
+        function playQuestionAudio() {
+            if (audioElement) {
+                audioElement.currentTime = 0;
+                audioElement.play();
             }
         }
         
