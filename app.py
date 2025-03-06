@@ -10,7 +10,7 @@ import PyPDF2
 import docx
 import json
 import uuid
-from pydub import AudioSegment  # Added for audio conversion
+from pydub import AudioSegment  # For audio conversion
 import logging
 
 app = Flask(__name__, static_folder='static')
@@ -27,8 +27,6 @@ def ensure_directories():
 ensure_directories()
 
 # Ensure directories exist before first request
-# Right after app configuration, before routes
-# Create directories immediately at startup
 with app.app_context():
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['INTERVIEW_DATA'], exist_ok=True)
@@ -235,15 +233,21 @@ def submit_answer():
         if 'audio' in request.files:
             audio_file = request.files['audio']
             if audio_file.filename != '':
-                # Save the audio file temporarily as WebM or Ogg
-                # Use /tmp for Heroku's ephemeral filesystem
+                # Save the audio file temporarily with its original extension
                 with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(audio_file.filename)[1], dir='/tmp') as temp:
                     audio_file.save(temp.name)
                     temp_filename = temp.name
 
-                logger.info(f"Converting {temp_filename} to WAV")
-                # Detect format from the filename extension
-                audio_format = os.path.splitext(temp_filename)[1][1:]  # e.g., 'webm' or 'ogg'
+                # Log file details
+                file_size = os.path.getsize(temp_filename)
+                logger.info(f"Saved audio file: {temp_filename}, size: {file_size} bytes")
+                
+                if file_size == 0:
+                    raise ValueError("Uploaded audio file is empty")
+
+                # Convert to WAV using pydub
+                audio_format = os.path.splitext(temp_filename)[1][1:]  # e.g., 'webm', 'ogg', 'mp4'
+                logger.info(f"Converting {temp_filename} (format: {audio_format}) to WAV")
                 audio = AudioSegment.from_file(temp_filename, format=audio_format)
                 wav_filename = temp_filename.replace(f'.{audio_format}', '.wav')
                 audio.export(wav_filename, format='wav')
