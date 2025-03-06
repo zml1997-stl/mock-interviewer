@@ -1,4 +1,3 @@
-# app.py
 import os
 import tempfile
 import time
@@ -11,7 +10,8 @@ import PyPDF2
 import docx
 import json
 import uuid
-from pydub import AudioSegment
+from pydub import AudioSegment  # Added for audio conversion
+import logging
 
 app = Flask(__name__, static_folder='static')
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -235,26 +235,30 @@ def submit_answer():
         if 'audio' in request.files:
             audio_file = request.files['audio']
             if audio_file.filename != '':
-                # Save the audio file temporarily as WebM
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.webm') as temp:
+                # Save the audio file temporarily as WebM or Ogg
+                # Use /tmp for Heroku's ephemeral filesystem
+                with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(audio_file.filename)[1], dir='/tmp') as temp:
                     audio_file.save(temp.name)
                     temp_filename = temp.name
-                
-                # Convert WebM to PCM WAV using pydub
-                audio = AudioSegment.from_file(temp_filename, format='webm')
-                wav_filename = temp_filename.replace('.webm', '.wav')
+
+                logger.info(f"Converting {temp_filename} to WAV")
+                # Detect format from the filename extension
+                audio_format = os.path.splitext(temp_filename)[1][1:]  # e.g., 'webm' or 'ogg'
+                audio = AudioSegment.from_file(temp_filename, format=audio_format)
+                wav_filename = temp_filename.replace(f'.{audio_format}', '.wav')
                 audio.export(wav_filename, format='wav')
-                
-                # Convert speech to text with the WAV file
+
+                logger.info(f"Converted to {wav_filename}")
                 recognizer = sr.Recognizer()
                 with sr.AudioFile(wav_filename) as source:
                     audio_data = recognizer.record(source)
                     try:
                         answer_text = recognizer.recognize_google(audio_data)
+                        logger.info("Successfully transcribed audio")
                     except Exception as e:
-                        print(f"Speech recognition error: {e}")
+                        logger.error(f"Speech recognition error: {e}")
                         answer_text = "[Unable to transcribe audio]"
-                
+
                 # Clean up temporary files
                 os.unlink(temp_filename)
                 os.unlink(wav_filename)
@@ -278,6 +282,7 @@ def submit_answer():
         
         return jsonify({'success': True, 'next_question_index': question_index + 1})
     except Exception as e:
+        logger.error(f"Error in submit_answer: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/generate_feedback', methods=['POST'])
@@ -352,6 +357,10 @@ def feedback_page(interview_id):
         )
     except Exception as e:
         return f"Interview data not found or error: {str(e)}", 404
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Run the app
 if __name__ == '__main__':
