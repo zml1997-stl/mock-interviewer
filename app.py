@@ -235,25 +235,29 @@ def submit_answer():
         if 'audio' in request.files:
             audio_file = request.files['audio']
             if audio_file.filename != '':
-                # Save the audio file temporarily
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp:
+                # Save the audio file temporarily as WebM
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.webm') as temp:
                     audio_file.save(temp.name)
                     temp_filename = temp.name
                 
-                # Convert speech to text
+                # Convert WebM to PCM WAV using pydub
+                audio = AudioSegment.from_file(temp_filename, format='webm')
+                wav_filename = temp_filename.replace('.webm', '.wav')
+                audio.export(wav_filename, format='wav')
+                
+                # Convert speech to text with the WAV file
                 recognizer = sr.Recognizer()
-                with sr.AudioFile(temp_filename) as source:
+                with sr.AudioFile(wav_filename) as source:
                     audio_data = recognizer.record(source)
                     try:
                         answer_text = recognizer.recognize_google(audio_data)
-                    except sr.UnknownValueError:
-                        answer_text = "[Unable to transcribe audio]"
                     except Exception as e:
                         print(f"Speech recognition error: {e}")
-                        answer_text = "[Speech recognition failed]"
+                        answer_text = "[Unable to transcribe audio]"
                 
-                # Clean up temp file
+                # Clean up temporary files
                 os.unlink(temp_filename)
+                os.unlink(wav_filename)
         else:
             # If no audio was provided, use text input
             answer_text = request.form.get('text_answer', '')
