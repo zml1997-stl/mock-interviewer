@@ -11,6 +11,7 @@ import PyPDF2
 import docx
 import json
 import uuid
+from pydub import AudioSegment
 
 app = Flask(__name__, static_folder='static')
 app.config['UPLOAD_FOLDER'] = 'uploads'
