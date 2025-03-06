@@ -1,7 +1,7 @@
 import os
 import tempfile
 import time
-from flask import Flask, request, jsonify, render_template, send_from_directory, Response
+from flask import Flask, request, jsonify, render_template, send_from_directory
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 import speech_recognition as sr
@@ -12,8 +12,6 @@ import json
 import uuid
 from pydub import AudioSegment  # For audio conversion
 import logging
-import re
-from datetime import datetime
 
 app = Flask(__name__, static_folder='static')
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -75,20 +73,6 @@ def extract_text_from_resume(file_path):
             return file.read()
     else:
         return ""
-
-# Helper function to strip HTML tags for text export
-def strip_html_tags(html_str):
-    """Remove HTML tags from a string and clean up formatting for text export."""
-    # Remove HTML tags
-    clean_text = re.sub(r'<.*?>', '', html_str)
-    
-    # Replace multiple newlines with just two
-    clean_text = re.sub(r'\n{3,}', '\n\n', clean_text)
-    
-    # Replace multiple spaces with single space
-    clean_text = re.sub(r' {2,}', ' ', clean_text)
-    
-    return clean_text.strip()
 
 # Routes
 @app.route('/')
@@ -377,50 +361,6 @@ def feedback_page(interview_id):
         )
     except Exception as e:
         return f"Interview data not found or error: {str(e)}", 404
-
-@app.route('/export_feedback/<interview_id>', methods=['GET'])
-def export_feedback(interview_id):
-    try:
-        with open(os.path.join(app.config['INTERVIEW_DATA'], f'{interview_id}.json'), 'r') as f:
-            interview_data = json.load(f)
-        
-        # Create a formatted text version of the feedback
-        job_title = interview_data['job_title']
-        feedback = strip_html_tags(interview_data['feedback'])
-        
-        # Format the content
-        content = f"INTERVIEW FEEDBACK FOR {job_title}\n"
-        content += "=" * len(content) + "\n\n"
-        content += f"Date: {datetime.now().strftime('%Y-%m-%d')}\n\n"
-        content += f"Position: {job_title}\n"
-        content += f"Interview Level: {interview_data['interview_level']}\n"
-        content += f"Interview Type: {interview_data['interview_type']}\n\n"
-        content += "FEEDBACK\n"
-        content += "=" * 8 + "\n\n"
-        content += feedback + "\n\n"
-        
-        # Add Q&A section
-        content += "INTERVIEW QUESTIONS & ANSWERS\n"
-        content += "=" * 30 + "\n\n"
-        
-        for i, response in enumerate(interview_data['responses']):
-            content += f"Q{i+1}: {response['question']}\n"
-            content += "-" * 50 + "\n"
-            content += f"{response['answer']}\n\n"
-        
-        # Create safe filename
-        safe_job_title = re.sub(r'[^a-zA-Z0-9]', '_', job_title).lower()
-        filename = f"interview_feedback_{safe_job_title}_{datetime.now().strftime('%Y%m%d')}.txt"
-        
-        # Return as downloadable text file
-        return Response(
-            content,
-            mimetype="text/plain",
-            headers={"Content-Disposition": f"attachment;filename={filename}"}
-        )
-        
-    except Exception as e:
-        return f"Error exporting feedback: {str(e)}", 500
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
