@@ -375,7 +375,34 @@
                 alert('Failed to submit answer. Please try again.');
             }
         }
-        
+
+        async function submitAudioAnswer(audioBlob) {
+            try {
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.wav');
+                formData.append('interview_id', interviewId);
+                formData.append('question_index', currentQuestionIndex);
+                
+                const response = await fetch('/submit_answer', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    answerSubmitted = true;
+                    nextBtn.disabled = false; // Enable the "Next Question" button
+                    nextBtn.classList.remove('disabled'); // Remove the disabled styling
+                } else {
+                    alert('Failed to submit answer: ' + (data.error || 'Unknown error'));
+                }
+                
+            } catch (error) {
+                console.error('Error submitting answer:', error);
+                alert('Failed to submit answer. Please try again.');
+            }
+        }        
         function submitTextAnswer() {
             const answer = textAnswer.value.trim();
             if (!answer) {
