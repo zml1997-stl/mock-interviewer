@@ -245,9 +245,11 @@ def submit_answer():
                     audio_data = recognizer.record(source)
                     try:
                         answer_text = recognizer.recognize_google(audio_data)
+                    except sr.UnknownValueError:
+                        answer_text = "[Unable to transcribe audio]"
                     except Exception as e:
                         print(f"Speech recognition error: {e}")
-                        answer_text = "[Unable to transcribe audio]"
+                        answer_text = "[Speech recognition failed]"
                 
                 # Clean up temp file
                 os.unlink(temp_filename)
