@@ -130,9 +130,6 @@
             <div class="card-header">
                 <h5 class="card-title mb-0">Question</h5>
             </div>
-            <div class="card-body p-4">
-                <p id="questionText" class="lead"></p>
-            </div>
         </div>
         
         <div class="text-center mb-3">
@@ -285,6 +282,18 @@
                 
                 questionText.textContent = data.question;
                 
+                // Create audio element
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.remove();
+                }
+                
+                audioElement = new Audio(data.audio_url);
+                audioElement.addEventListener('canplaythrough', () => {
+                    audioElement.play();
+                    replayBtn.style.display = 'inline-block';
+                });
+                
                 // Reset state for new question
                 resetRecording();
                 answerSubmitted = false;
@@ -296,7 +305,6 @@
                 alert('Failed to load question. Please try refreshing the page.');
             }
         }
-        
         
         function toggleRecording() {
             if (recorder && recorder.state === 'recording') {
