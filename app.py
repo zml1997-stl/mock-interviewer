@@ -16,13 +16,14 @@ import logging
 app = Flask(__name__, static_folder='static')
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['INTERVIEW_DATA'] = 'interview_data'
+app.config['STATIC_AUDIO'] = 'static/audio'
 
 # Create required directories if they don't exist
 def ensure_directories():
     with app.app_context():
         os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
         os.makedirs(app.config['INTERVIEW_DATA'], exist_ok=True)
-        os.makedirs('static/audio', exist_ok=True)
+        os.makedirs(app.config['STATIC_AUDIO'], exist_ok=True)
 
 ensure_directories()
 
@@ -30,7 +31,7 @@ ensure_directories()
 with app.app_context():
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['INTERVIEW_DATA'], exist_ok=True)
-    os.makedirs('static/audio', exist_ok=True)
+    os.makedirs(app.config['STATIC_AUDIO'], exist_ok=True)
 
 # Configure Gemini API
 def configure_genai(api_key):
@@ -204,15 +205,29 @@ def ask_question():
         if question_index < len(interview_data['questions']):
             question = interview_data['questions'][question_index]
             audio_filename = f"{interview_id}_question_{question_index}.mp3"
-            audio_path = os.path.join('static/audio', audio_filename)
+            audio_path = os.path.join(app.config['STATIC_AUDIO'], audio_filename)
             
-            # Generate TTS for the question
-            tts = gTTS(text=question, lang='en')
-            tts.save(audio_path)
+            # Generate TTS for the question with error handling
+            try:
+                tts = gTTS(text=question, lang='en', slow=False)
+                tts.save(audio_path)
+                # Verify the file exists and is not empty
+                if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
+                    raise ValueError("Generated audio file is empty or missing")
+            except Exception as e:
+                logger.error(f"Error generating TTS audio: {e}")
+                # Fallback: create a minimal audio file to indicate failure
+                tts = gTTS(text="Unable to generate audio for this question. Please read the text.", lang='en')
+                tts.save(audio_path)
+            
+            # Ensure the audio file is accessible
+            if not os.path.exists(audio_path):
+                logger.error(f"Audio file not found at {audio_path}")
+                return jsonify({'error': 'Failed to generate audio'}), 500
             
             return jsonify({
                 'question': question,
-                'audio_url': f'/static/audio/{audio_filename}',
+                'audio_url': f'/static/audio/{audio_filename}?t={int(time.time())}',  # Cache-busting query parameter
                 'question_index': question_index
             })
         else:
@@ -221,6 +236,7 @@ def ask_question():
                 'message': "Interview completed. Generating feedback..."
             })
     except Exception as e:
+        logger.error(f"Error in ask_question: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/submit_answer', methods=['POST'])
