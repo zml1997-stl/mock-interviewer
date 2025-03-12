@@ -1,4 +1,3 @@
-<!-- templates/interview.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -112,6 +111,27 @@
             0% { transform: translateX(100%); }
             100% { transform: translateX(-100%); }
         }
+        /* Mobile-specific styles */
+        @media (max-width: 576px) {
+            .record-btn {
+                width: 100px;
+                height: 100px;
+                font-size: 2.5rem;
+            }
+            .timer {
+                font-size: 2rem;
+            }
+            .btn {
+                padding: 0.75rem 1.5rem;
+                font-size: 1.25rem;
+            }
+            .card-header {
+                padding: 1rem;
+            }
+            .card-body {
+                padding: 1.5rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -133,8 +153,8 @@
             <div class="card-body p-4">
                 <p id="questionText" class="lead"></p>
                 <div class="text-center">
-                    <button id="replayBtn" class="btn btn-sm btn-outline-primary" style="display: none;">
-                        <i class="bi bi-volume-up"></i> Replay Question
+                    <button id="playAudioBtn" class="btn btn-sm btn-outline-primary" style="display: none;">
+                        <i class="bi bi-volume-up"></i> Play Question
                     </button>
                 </div>
             </div>
@@ -230,7 +250,7 @@
         
         // DOM elements
         const questionText = document.getElementById('questionText');
-        const replayBtn = document.getElementById('replayBtn');
+        const playAudioBtn = document.getElementById('playAudioBtn');
         const recordBtn = document.getElementById('recordBtn');
         const recordingIndicator = document.getElementById('recordingIndicator');
         const timer = document.getElementById('timer');
@@ -253,7 +273,7 @@
             loadQuestion(currentQuestionIndex);
             
             // Set up event listeners
-            replayBtn.addEventListener('click', playQuestionAudio);
+            playAudioBtn.addEventListener('click', playQuestionAudio);
             recordBtn.addEventListener('click', toggleRecording);
             nextBtn.addEventListener('click', goToNextQuestion);
             voiceBtn.addEventListener('click', switchToVoiceAnswer);
@@ -262,7 +282,7 @@
             generateFeedbackBtn.addEventListener('click', generateFeedback);
         });
         
-        // Functions
+        // Load question and handle audio playback
         async function loadQuestion(index) {
             try {
                 currentQuestionSpan.textContent = index + 1;
@@ -272,9 +292,7 @@
                 
                 const response = await fetch('/ask_question', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         interview_id: interviewId,
                         question_index: index
@@ -290,7 +308,7 @@
                 
                 questionText.textContent = data.question;
                 
-                // Create audio element
+                // Create audio element without autoplay
                 if (audioElement) {
                     audioElement.pause();
                     audioElement.remove();
@@ -298,8 +316,11 @@
                 
                 audioElement = new Audio(data.audio_url);
                 audioElement.addEventListener('canplaythrough', () => {
-                    audioElement.play();
-                    replayBtn.style.display = 'inline-block';
+                    playAudioBtn.style.display = 'inline-block';
+                });
+                audioElement.addEventListener('error', () => {
+                    console.error('Audio load error:', audioElement.error);
+                    alert('Failed to load audio. Please use the "Play Question" button or check your connection.');
                 });
                 
                 // Reset state for new question
@@ -317,7 +338,10 @@
         function playQuestionAudio() {
             if (audioElement) {
                 audioElement.currentTime = 0;
-                audioElement.play();
+                audioElement.play().catch(error => {
+                    console.error('Error playing audio:', error);
+                    alert('Unable to play audio. Please check your browser settings or try again.');
+                });
             }
         }
         
@@ -359,6 +383,7 @@
         function stopRecording() {
             if (recorder) {
                 recorder.stop();
+                recorder.stream.getTracks().forEach(track => track.stop()); // Stop the stream
                 clearInterval(timerInterval);
                 
                 recordBtn.classList.remove('btn-danger');
@@ -369,7 +394,6 @@
         }
         
         function processRecording() {
-            // Determine supported MIME type
             let mimeType = 'audio/webm';
             if (!MediaRecorder.isTypeSupported('audio/webm')) {
                 if (MediaRecorder.isTypeSupported('audio/ogg')) {
@@ -384,42 +408,53 @@
             console.log('Recording MIME type:', mimeType);
             const audioBlob = new Blob(audioChunks, { type: mimeType });
             console.log('Blob size:', audioBlob.size);
+            if (audioBlob.size === 0) {
+                alert('Recording is empty. Please try again.');
+                return;
+            }
             submitAudioAnswer(audioBlob, mimeType);
         }
         
         async function submitAudioAnswer(audioBlob, mimeType) {
-            try {
-                // Show loading overlay
-                loadingOverlay.style.display = 'flex';
-                
-                const extension = mimeType.split('/')[1];
-                const formData = new FormData();
-                formData.append('audio', audioBlob, `recording.${extension}`);
-                formData.append('interview_id', interviewId);
-                formData.append('question_index', currentQuestionIndex);
-                
-                const response = await fetch('/submit_answer', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                // Hide loading overlay
-                loadingOverlay.style.display = 'none';
-                
-                if (data.success) {
-                    answerSubmitted = true;
-                    nextBtn.disabled = false;
-                } else {
-                    alert('Failed to submit answer: ' + (data.error || 'Unknown error'));
+            const maxRetries = 3;
+            let attempts = 0;
+            
+            while (attempts < maxRetries) {
+                try {
+                    loadingOverlay.style.display = 'flex';
+                    
+                    const extension = mimeType.split('/')[1];
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob, `recording.${extension}`);
+                    formData.append('interview_id', interviewId);
+                    formData.append('question_index', currentQuestionIndex);
+                    
+                    const response = await fetch('/submit_answer', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    loadingOverlay.style.display = 'none';
+                    
+                    if (data.success) {
+                        answerSubmitted = true;
+                        nextBtn.disabled = false;
+                        return;
+                    } else {
+                        throw new Error(data.error || 'Unknown error');
+                    }
+                } catch (error) {
+                    attempts++;
+                    loadingOverlay.style.display = 'none';
+                    console.error('Submission error (attempt ' + attempts + '):', error);
+                    if (attempts >= maxRetries) {
+                        alert('Failed to submit answer after multiple attempts. Please try again later.');
+                    } else {
+                        console.warn('Retrying submission... Attempt ' + (attempts + 1));
+                        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+                    }
                 }
-                
-            } catch (error) {
-                // Hide loading overlay on error
-                loadingOverlay.style.display = 'none';
-                console.error('Error submitting answer:', error);
-                alert('Failed to submit answer. Please try again.');
             }
         }
         
@@ -433,7 +468,6 @@
                 const minutes = Math.floor((elapsedTime / 1000 / 60) % 60).toString().padStart(2, '0');
                 timer.textContent = `${minutes}:${seconds}`;
                 
-                // Auto-stop after 3 minutes
                 if (elapsedTime > 180000) {
                     stopRecording();
                 }
@@ -523,22 +557,17 @@
         
         async function generateFeedback() {
             generateFeedbackBtn.disabled = true;
-            feedbackProgress.style.display = 'block'; // Show spinner and tips only when button is clicked
+            feedbackProgress.style.display = 'block';
             
             try {
                 const response = await fetch('/generate_feedback', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        interview_id: interviewId
-                    }),
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ interview_id: interviewId }),
                 });
                 
                 const data = await response.json();
-                
-                feedbackProgress.style.display = 'none'; // Hide spinner and tips on success
+                feedbackProgress.style.display = 'none';
                 
                 if (data.error) {
                     alert('Error generating feedback: ' + data.error);
@@ -546,11 +575,9 @@
                     return;
                 }
                 
-                // Redirect to feedback page
                 window.location.href = '/feedback/' + interviewId;
-                
             } catch (error) {
-                feedbackProgress.style.display = 'none'; // Hide spinner and tips on error
+                feedbackProgress.style.display = 'none';
                 console.error('Error generating feedback:', error);
                 alert('Failed to generate feedback. Please try again.');
                 generateFeedbackBtn.disabled = false;
