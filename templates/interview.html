@@ -153,7 +153,7 @@
             <div class="card-body p-4">
                 <p id="questionText" class="lead"></p>
                 <div class="text-center">
-                    <button id="playAudioBtn" class="btn btn-sm btn-outline-primary" style="display: none;">
+                    <button id="playAudioBtn" class="btn btn-sm btn-outline-primary">
                         <i class="bi bi-volume-up"></i> Play Question
                     </button>
                 </div>
@@ -240,6 +240,7 @@
         // Global variables
         const interviewId = "{{ interview_id }}";
         const questions = {{ questions|tojson }};
+        const audioUrls = {{ audio_urls|tojson }};  // Preloaded audio URLs from server
         let currentQuestionIndex = 0;
         let audioElement = null;
         let recorder = null;
@@ -308,20 +309,19 @@
                 
                 questionText.textContent = data.question;
                 
-                // Create audio element without autoplay
+                // Create audio element using preloaded audio URL
                 if (audioElement) {
                     audioElement.pause();
                     audioElement.remove();
                 }
                 
-                audioElement = new Audio(data.audio_url);
-                audioElement.addEventListener('canplaythrough', () => {
-                    playAudioBtn.style.display = 'inline-block';
-                });
+                audioElement = new Audio(audioUrls[index]);
                 audioElement.addEventListener('error', () => {
                     console.error('Audio load error:', audioElement.error);
-                    alert('Failed to load audio. Please use the "Play Question" button or check your connection.');
+                    alert('Failed to load audio for this question. Please read the text or try again.');
                 });
+                // Since audio is preloaded, button is always visible
+                playAudioBtn.style.display = 'inline-block';
                 
                 // Reset state for new question
                 resetRecording();
