@@ -1,4 +1,3 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -25,6 +24,18 @@
             font-size: 1.5rem;
             margin-bottom: 0.5rem;
             color: #4a6baf;
+        }
+        @media (max-width: 576px) {
+            .card-header {
+                padding: 1rem;
+            }
+            .card-body {
+                padding: 1.5rem;
+            }
+            .btn {
+                padding: 0.75rem 1.5rem;
+                font-size: 1.25rem;
+            }
         }
     </style>
 </head>
@@ -108,8 +119,8 @@
                     <div class="spinner-border text-primary mb-3" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
-                    <h5>Setting up your interview...</h5>
-                    <p class="text-muted">Analyzing your resume and preparing relevant questions.</p>
+                    <h5 id="loadingMessage">Setting up your interview...</h5>
+                    <p class="text-muted">Analyzing your resume, generating questions, and preloading audio.</p>
                 </div>
             </div>
         </div>
@@ -123,6 +134,7 @@
             // Show loading modal
             const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
             loadingModal.show();
+            const loadingMessage = document.getElementById('loadingMessage');
             
             try {
                 const formData = new FormData(this);
@@ -138,7 +150,25 @@
                     return;
                 }
                 
+                // Preload all audio files
+                loadingMessage.textContent = 'Preloading audio files...';
+                const audioPromises = data.audio_urls.map(url => {
+                    return new Promise((resolve, reject) => {
+                        const audio = new Audio(url);
+                        audio.addEventListener('canplaythrough', () => resolve());
+                        audio.addEventListener('error', () => reject(new Error(`Failed to load ${url}`)));
+                        audio.load(); // Preload the audio
+                    });
+                });
+                
+                // Wait for all audio files to preload
+                await Promise.all(audioPromises).catch(error => {
+                    console.error('Audio preloading error:', error);
+                    alert('Some audio files failed to load, but you can still proceed. Check the console for details.');
+                });
+                
                 // Redirect to interview page
+                loadingModal.hide();
                 window.location.href = '/interview/' + data.interview_id;
             } catch (error) {
                 console.error('Error:', error);
