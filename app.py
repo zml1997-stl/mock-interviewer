@@ -98,6 +98,7 @@ def setup_interview():
         'interview_level': request.form.get('interview_level', 'intermediate'),
         'interview_type': request.form.get('interview_type', 'general'),
         'questions': [],
+        'audio_urls': [],  # New field to store pre-generated audio URLs
         'responses': [],
         'feedback': ''
     }
@@ -169,13 +170,35 @@ def setup_interview():
             "Where do you see yourself in five years?"
         ]
     
+    # Pre-generate audio files for all questions
+    audio_urls = []
+    for idx, question in enumerate(interview_data['questions']):
+        audio_filename = f"{interview_id}_question_{idx}.mp3"
+        audio_path = os.path.join(app.config['STATIC_AUDIO'], audio_filename)
+        try:
+            tts = gTTS(text=question, lang='en', slow=False)
+            tts.save(audio_path)
+            # Verify the file exists and is not empty
+            if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
+                raise ValueError("Generated audio file is empty or missing")
+            audio_urls.append(f"/static/audio/{audio_filename}?t={int(time.time())}")
+        except Exception as e:
+            logger.error(f"Error generating audio for question {idx}: {e}")
+            # Fallback audio
+            tts = gTTS(text="Unable to generate audio for this question. Please read the text.", lang='en')
+            tts.save(audio_path)
+            audio_urls.append(f"/static/audio/{audio_filename}?t={int(time.time())}")
+    
+    interview_data['audio_urls'] = audio_urls
+    
     # Save interview data
     with open(os.path.join(app.config['INTERVIEW_DATA'], f'{interview_id}.json'), 'w') as f:
         json.dump(interview_data, f)
     
     return jsonify({
         'interview_id': interview_id,
-        'questions': interview_data['questions']
+        'questions': interview_data['questions'],
+        'audio_urls': interview_data['audio_urls']  # Pass audio URLs to the client
     })
 
 @app.route('/interview/<interview_id>')
@@ -187,7 +210,8 @@ def interview_page(interview_id):
             'interview.html',
             interview_id=interview_id,
             job_title=interview_data['job_title'],
-            questions=interview_data['questions']
+            questions=interview_data['questions'],
+            audio_urls=interview_data['audio_urls']  # Pass audio URLs to the template
         )
     except Exception as e:
         return f"Interview not found or error: {str(e)}", 404
@@ -204,30 +228,11 @@ def ask_question():
         
         if question_index < len(interview_data['questions']):
             question = interview_data['questions'][question_index]
-            audio_filename = f"{interview_id}_question_{question_index}.mp3"
-            audio_path = os.path.join(app.config['STATIC_AUDIO'], audio_filename)
-            
-            # Generate TTS for the question with error handling
-            try:
-                tts = gTTS(text=question, lang='en', slow=False)
-                tts.save(audio_path)
-                # Verify the file exists and is not empty
-                if not os.path.exists(audio_path) or os.path.getsize(audio_path) == 0:
-                    raise ValueError("Generated audio file is empty or missing")
-            except Exception as e:
-                logger.error(f"Error generating TTS audio: {e}")
-                # Fallback: create a minimal audio file to indicate failure
-                tts = gTTS(text="Unable to generate audio for this question. Please read the text.", lang='en')
-                tts.save(audio_path)
-            
-            # Ensure the audio file is accessible
-            if not os.path.exists(audio_path):
-                logger.error(f"Audio file not found at {audio_path}")
-                return jsonify({'error': 'Failed to generate audio'}), 500
+            audio_url = interview_data['audio_urls'][question_index]
             
             return jsonify({
                 'question': question,
-                'audio_url': f'/static/audio/{audio_filename}?t={int(time.time())}',  # Cache-busting query parameter
+                'audio_url': audio_url,
                 'question_index': question_index
             })
         else:
