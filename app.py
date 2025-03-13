@@ -310,6 +310,8 @@ def submit_answer():
         logger.error(f"Error in submit_answer: {e}")
         return jsonify({'error': str(e)}), 500
 
+# ... (previous imports and code remain unchanged until the generate_feedback route) ...
+
 @app.route('/generate_feedback', methods=['POST'])
 def generate_feedback():
     interview_id = request.json.get('interview_id')
@@ -338,21 +340,52 @@ def generate_feedback():
         
         prompt = f"""
         You are an expert job interview coach. Please analyze this mock interview for a {interview_data['interview_level']} level {interview_data['job_title']} position.
-        
+
         Here is the candidate's resume:
         {interview_data['resume_text']}
         
         Here are the questions and answers from the interview:
         {qa_text}
         
-        Please provide comprehensive feedback on:
-        1. Overall performance and impression
-        2. Strengths demonstrated in the responses
-        3. Areas for improvement
-        4. Specific advice for each question/answer
-        5. General interview technique (clarity, conciseness, relevance)
-        
-        Format your feedback in a structured, easy-to-read format with clear sections and bullet points where appropriate.
+        Please provide comprehensive feedback strictly adhering to the following structured format. Do not deviate from this structure or add extra sections. Use the exact numbering and headings as provided below. Use bullet points for sub-items where applicable:
+
+        1. Overall Performance and Impression:
+        - Overall: [Provide a general assessment of the candidate's performance]
+        - Impression: [Provide an overall impression of the candidate based on their responses]
+
+        2. Strengths Demonstrated in the Responses:
+        - [List specific strengths with brief explanations, e.g., "Experience with Various Countries: The candidate mentions experience shipping to a diverse range of countries..."]
+
+        3. Areas for Improvement:
+        - [List specific areas needing improvement with brief explanations, e.g., "Specificity and Detail: Answers often lack concrete examples..."]
+
+        4. Specific Advice for Each Question/Answer:
+        - [Question number and text]: [Feedback on the answer, e.g., "The answer is disorganized and lacks specific details."]
+        - Advice: 
+          - Use the STAR method (Situation, Task, Action, Result) to structure your answer.
+          - [Provide specific guidance tailored to the question, e.g., "Choose three specific countries and describe the specific regulations..."]
+          - Include a suggested example response using the STAR method, formatted as: 
+            - Situation: [Describe the context]
+            - Task: [Describe your responsibility]
+            - Action: [Describe what you did]
+            - Result: [Quantify the outcome, e.g., "reduced processing time by 50%"]
+          - [Repeat for each question/answer pair]
+
+        5. General Interview Technique (Clarity, Conciseness, Relevance):
+        - Clarity: [Assessment and tips for improving clarity]
+        - Conciseness: [Assessment and tips for improving conciseness]
+        - Relevance: [Assessment and tips for improving relevance]
+        - Enthusiasm: [Assessment and tips for showing enthusiasm]
+
+        Overall Recommendations:
+        1. [Recommendation 1, e.g., "Preparation is Key: Thoroughly research Bayer Crop Science..."]
+        2. [Recommendation 2, e.g., "Practice Using the STAR Method: This will help you structure your answers..."]
+        3. [Recommendation 3, e.g., "Quantify Your Results: Whenever possible, quantify the impact..."]
+        4. [Recommendation 4, e.g., "Focus on Agricultural Trade: Tailor your responses..."]
+        5. [Recommendation 5, e.g., "Be Confident and Enthusiastic: Project confidence..."]
+        6. [Recommendation 6, e.g., "Prepare Questions to Ask: Have thoughtful questions..."]
+
+        Ensure the feedback is tailored to the candidate's responses and the job title. Do not include any introductory or concluding remarks outside this structure. For the suggested STAR method example, create a realistic scenario based on the candidate's experience or the job role, and include quantifiable results where possible.
         """
         
         response = model.generate_content(prompt)
@@ -366,6 +399,8 @@ def generate_feedback():
         return jsonify({'feedback': feedback})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# ... (rest of the code remains unchanged) ...
 
 @app.route('/feedback/<interview_id>')
 def feedback_page(interview_id):
