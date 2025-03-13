@@ -138,7 +138,7 @@ def setup_interview():
         Additional custom questions or topics to include:
         {interview_data['custom_questions']}
         
-        Please generate 8-10 relevant and different interview questions for a {interview_data['interview_type']} interview.
+        Please generate 6 relevant and different interview questions for a {interview_data['interview_type']} interview.
         Format your response as a JSON array of strings, each containing one question. 
         Do not include any explanations or other text outside the JSON array.
         """
