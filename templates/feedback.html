@@ -10,22 +10,33 @@
     <style>
         body {
             background-color: #f8f9fa;
-            padding-top: 2rem;
-            padding-bottom: 4rem;
+            padding: 2rem 0 4rem;
+            font-family: 'Arial', sans-serif;
+        }
+        .container {
+            max-width: 900px;
         }
         .card {
             border-radius: 1rem;
-            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
             margin-bottom: 2rem;
+            border: none;
         }
         .card-header {
             background-color: #4a6baf;
             color: white;
-            border-radius: 1rem 1rem 0 0 !important;
+            border-radius: 1rem 1rem 0 0;
             padding: 1.5rem;
         }
         .feedback-header {
             background-color: #198754;
+        }
+        .section-title {
+            color: #4a6baf;
+            font-weight: bold;
+            margin: 2rem 0 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e9ecef;
         }
         .qa-card {
             border-left: 4px solid #4a6baf;
@@ -34,17 +45,12 @@
         .qa-card .card-header {
             background-color: rgba(74, 107, 175, 0.1);
             color: #212529;
-            border-radius: 0 !important;
+            border-radius: 0;
             padding: 1rem;
+            font-weight: bold;
         }
-        .feedback-section {
-            margin-bottom: 2rem;
-        }
-        .feedback-section h4 {
-            color: #4a6baf;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #e9ecef;
+        .qa-card .card-body {
+            padding: 1.5rem;
         }
         .btn-fab {
             position: fixed;
@@ -58,15 +64,15 @@
             align-items: center;
             justify-content: center;
             box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.3);
+            background-color: #4a6baf;
+            border: none;
         }
-        .feedback-content h1,
-        .feedback-content h2,
-        .feedback-content h3 {
-            margin-top: 2rem;
-            margin-bottom: 1rem;
+        .btn-fab:hover {
+            background-color: #375a8f;
         }
         .feedback-content p {
             margin-bottom: 1rem;
+            line-height: 1.6;
         }
         .feedback-content ul,
         .feedback-content ol {
@@ -80,48 +86,48 @@
 </head>
 <body>
     <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-10">
-                <div class="card mb-4">
-                    <div class="card-header feedback-header">
-                        <h2 class="card-title mb-0">
-                            <i class="bi bi-clipboard-check me-2"></i>
-                            Interview Feedback
-                        </h2>
-                        <p class="mb-0 mt-2">
-                            Job Title: <strong>{{ job_title }}</strong>
-                        </p>
-                    </div>
-                    <div class="card-body p-4">
-                        <div class="feedback-content">
-                            {{ feedback|safe }}
-                        </div>
-                    </div>
+        <!-- Main Feedback Section -->
+        <div class="card">
+            <div class="card-header feedback-header">
+                <h2 class="card-title mb-0">
+                    <i class="bi bi-clipboard-check me-2"></i>
+                    Interview Feedback
+                </h2>
+                <p class="mb-0 mt-2">
+                    Job Title: <strong>{{ job_title }}</strong>
+                </p>
+            </div>
+            <div class="card-body p-4">
+                <div class="feedback-content">
+                    {{ feedback|safe }}
                 </div>
-                
-                <h3 class="mt-5 mb-4">
-                    <i class="bi bi-chat-quote me-2"></i>
-                    Interview Questions & Answers
-                </h3>
-                
-                {% for question, answer in qa_pairs %}
-                <div class="card qa-card">
-                    <div class="card-header">
-                        <strong>Q{{ loop.index }}:</strong> {{ question }}
-                    </div>
-                    <div class="card-body">
-                        <p>{{ answer }}</p>
-                    </div>
-                </div>
-                {% endfor %}
             </div>
         </div>
+
+        <!-- Questions and Answers Section -->
+        <h3 class="section-title">
+            <i class="bi bi-chat-quote me-2"></i>
+            Interview Questions & Answers
+        </h3>
+
+        {% for question, answer in qa_pairs %}
+        <div class="card qa-card">
+            <div class="card-header">
+                <strong>Q{{ loop.index }}: {{ question }}</strong>
+            </div>
+            <div class="card-body">
+                <p>{{ answer }}</p>
+            </div>
+        </div>
+        {% endfor %}
     </div>
-    
-    <a href="/" class="btn btn-primary btn-fab">
+
+    <!-- Home Button -->
+    <a href="/" class="btn btn-fab">
         <i class="bi bi-house-fill"></i>
     </a>
-    
+
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
